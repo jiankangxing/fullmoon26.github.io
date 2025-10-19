@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康行 - 您的个人健康管理助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-6 py-3 rounded-full font-medium shadow-md hover:shadow-lg hover:bg-primary/90 transition-all;
+            }
+            .module-content {
+                @apply hidden;
+            }
+            .module-content.active {
+                @apply block;
+            }
+            .meal-content {
+                @apply hidden;
+            }
+            .meal-content.active {
+                @apply block;
+            }
+            .modal {
+                @apply fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300;
+            }
+            .modal.active {
+                @apply opacity-100 pointer-events-auto;
+            }
+            .modal-content {
+                @apply bg-white rounded-xl p-6 w-full max-w-md transform translate-y-8 transition-transform duration-300;
+            }
+            .modal.active .modal-content {
+                @apply translate-y-0;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark antialiased">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                    <i class="fa fa-heartbeat text-white text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold text-primary">健康行</h1>
+            </div>
+            
+            <div class="hidden md:flex items-center space-x-6">
+                <button class="module-tab text-primary font-medium" data-module="diet">饮食</button>
+                <button class="module-tab text-gray-600 font-medium" data-module="exercise">运动</button>
+                <button class="module-tab text-gray-600 font-medium" data-module="sleep">睡眠</button>
+                <button class="module-tab text-gray-600 font-medium" data-module="community">社区</button>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button class="text-gray-600 hover:text-primary transition-colors relative">
+                    <i class="fa fa-bell text-xl"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">3</span>
+                </button>
+                <img src="https://picsum.photos/40/40?user" alt="用户头像" class="w-10 h-10 rounded-full object-cover border-2 border-primary/20">
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="container mx-auto px-4 pt-24 pb-20">
+        <!-- 模块标题 -->
+        <section class="py-6 bg-white border-b rounded-xl mb-8 shadow-sm">
+            <div class="flex items-center">
+                <h2 id="module-title" class="text-2xl font-bold">饮食管理</h2>
+            </div>
+        </section>
+
+        <!-- 1. 饮食模块 -->
+        <section id="diet" class="module-content active">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧：饮食记录 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 餐点选择器 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">今日饮食记录</h3>
+                        
+                        <div class="flex border-b mb-6">
+                            <button class="meal-tab py-2 px-4 font-medium text-primary border-b-2 border-primary" data-meal="breakfast">早餐</button>
+                            <button class="meal-tab py-2 px-4 font-medium text-gray-500 hover:text-primary" data-meal="lunch">午餐</button>
+                            <button class="meal-tab py-2 px-4 font-medium text-gray-500 hover:text-primary" data-meal="dinner">晚餐</button>
+                            <button class="meal-tab py-2 px-4 font-medium text-gray-500 hover:text-primary" data-meal="snack">加餐</button>
+                        </div>
+                        
+                        <!-- 早餐内容 -->
+                        <div id="breakfast" class="meal-content active">
+                            <!-- 食物输入 -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 mb-2">添加食物</label>
+                                <div class="flex">
+                                    <input type="text" placeholder="例如：鸡蛋、牛奶、面包..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary/50 food-name-input">
+                                    <input type="number" placeholder="克" class="w-20 px-4 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 food-amount-input">
+                                    <button class="bg-primary text-white px-4 rounded-r-lg hover:bg-primary/90 transition-colors add-food-btn" data-meal="breakfast">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已添加食物列表 -->
+                            <div class="mb-6 max-h-60 overflow-y-auto pr-2 food-list" data-meal="breakfast">
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?egg" alt="鸡蛋" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">水煮蛋</span>
+                                            <span class="text-gray-500 text-sm ml-2">50g</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">78</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?bread" alt="面包" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">全麦面包</span>
+                                            <span class="text-gray-500 text-sm ml-2">80g</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">200</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?milk" alt="牛奶" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">牛奶</span>
+                                            <span class="text-gray-500 text-sm ml-2">200ml</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">104</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 总计 -->
+                            <div class="flex justify-between items-center font-bold text-lg">
+                                <span>早餐总计：</span>
+                                <span class="text-primary meal-total" data-meal="breakfast">382 千卡</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 午餐内容 -->
+                        <div id="lunch" class="meal-content">
+                            <!-- 食物输入 -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 mb-2">添加食物</label>
+                                <div class="flex">
+                                    <input type="text" placeholder="例如：米饭、鸡肉、青菜..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary/50 food-name-input">
+                                    <input type="number" placeholder="克" class="w-20 px-4 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 food-amount-input">
+                                    <button class="bg-primary text-white px-4 rounded-r-lg hover:bg-primary/90 transition-colors add-food-btn" data-meal="lunch">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已添加食物列表 -->
+                            <div class="mb-6 max-h-60 overflow-y-auto pr-2 food-list" data-meal="lunch">
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?rice" alt="米饭" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">糙米饭</span>
+                                            <span class="text-gray-500 text-sm ml-2">150g</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">174</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?chicken" alt="鸡肉" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">烤鸡胸肉</span>
+                                            <span class="text-gray-500 text-sm ml-2">100g</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">165</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 总计 -->
+                            <div class="flex justify-between items-center font-bold text-lg">
+                                <span>午餐总计：</span>
+                                <span class="text-primary meal-total" data-meal="lunch">339 千卡</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 晚餐内容 -->
+                        <div id="dinner" class="meal-content">
+                            <!-- 食物输入 -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 mb-2">添加食物</label>
+                                <div class="flex">
+                                    <input type="text" placeholder="例如：面条、鱼、蔬菜..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary/50 food-name-input">
+                                    <input type="number" placeholder="克" class="w-20 px-4 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 food-amount-input">
+                                    <button class="bg-primary text-white px-4 rounded-r-lg hover:bg-primary/90 transition-colors add-food-btn" data-meal="dinner">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已添加食物列表 -->
+                            <div class="mb-6 max-h-60 overflow-y-auto pr-2 food-list" data-meal="dinner">
+                                <div class="text-center py-10 text-gray-500">
+                                    <i class="fa fa-cutlery text-3xl mb-2 opacity-50"></i>
+                                    <p>还没有添加晚餐食物</p>
+                                </div>
+                            </div>
+                            
+                            <!-- 总计 -->
+                            <div class="flex justify-between items-center font-bold text-lg">
+                                <span>晚餐总计：</span>
+                                <span class="text-primary meal-total" data-meal="dinner">0 千卡</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 加餐内容 -->
+                        <div id="snack" class="meal-content">
+                            <!-- 食物输入 -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 mb-2">添加食物</label>
+                                <div class="flex">
+                                    <input type="text" placeholder="例如：水果、坚果、酸奶..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary/50 food-name-input">
+                                    <input type="number" placeholder="克" class="w-20 px-4 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 food-amount-input">
+                                    <button class="bg-primary text-white px-4 rounded-r-lg hover:bg-primary/90 transition-colors add-food-btn" data-meal="snack">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已添加食物列表 -->
+                            <div class="mb-6 max-h-60 overflow-y-auto pr-2 food-list" data-meal="snack">
+                                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                    <div class="flex items-center">
+                                        <img src="https://picsum.photos/50/50?apple" alt="苹果" class="w-10 h-10 rounded-full object-cover mr-3">
+                                        <div>
+                                            <span class="font-medium">苹果</span>
+                                            <span class="text-gray-500 text-sm ml-2">150g</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="text-right mr-3">
+                                            <span class="font-medium">86</span>
+                                            <span class="text-gray-500 text-sm ml-1">千卡</span>
+                                        </div>
+                                        <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                                            <i class="fa fa-trash-o"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 总计 -->
+                            <div class="flex justify-between items-center font-bold text-lg">
+                                <span>加餐总计：</span>
+                                <span class="text-primary meal-total" data-meal="snack">86 千卡</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 推荐食谱 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">为您推荐</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="border border-gray-100 rounded-lg overflow-hidden card-hover">
+                                <img src="https://picsum.photos/300/200?diet1" alt="健康沙拉" class="w-full h-40 object-cover">
+                                <div class="p-4">
+                                    <h4 class="font-medium mb-2">地中海沙拉</h4>
+                                    <div class="flex justify-between text-sm mb-3">
+                                        <span class="text-gray-500">准备时间: 15分钟</span>
+                                        <span class="text-primary font-medium">320千卡</span>
+                                    </div>
+                                    <div class="flex items-center text-xs text-gray-500">
+                                        <span class="flex items-center mr-3"><i class="fa fa-leaf mr-1"></i> 高纤维</span>
+                                        <span class="flex items-center"><i class="fa fa-bolt mr-1"></i> 高蛋白</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="border border-gray-100 rounded-lg overflow-hidden card-hover">
+                                <img src="https://picsum.photos/300/200?diet2" alt="燕麦碗" class="w-full h-40 object-cover">
+                                <div class="p-4">
+                                    <h4 class="font-medium mb-2">水果燕麦碗</h4>
+                                    <div class="flex justify-between text-sm mb-3">
+                                        <span class="text-gray-500">准备时间: 5分钟</span>
+                                        <span class="text-primary font-medium">280千卡</span>
+                                    </div>
+                                    <div class="flex items-center text-xs text-gray-500">
+                                        <span class="flex items-center mr-3"><i class="fa fa-leaf mr-1"></i> 全谷物</span>
+                                        <span class="flex items-center"><i class="fa fa-bolt mr-1"></i> 低GI</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：营养分析 -->
+                <div class="space-y-8">
+                    <!-- 今日摄入概览 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">今日摄入概览</h3>
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <div class="text-gray-500 text-sm">已摄入</div>
+                                <div class="text-2xl font-bold total-calories-consumed">807 千卡</div>
+                            </div>
+                            <div class="h-12 w-px bg-gray-200"></div>
+                            <div>
+                                <div class="text-gray-500 text-sm">目标</div>
+                                <div class="text-2xl font-bold daily-energy-expenditure">1850 千卡</div>
+                            </div>
+                            <div class="h-12 w-px bg-gray-200"></div>
+                            <div>
+                                <div class="text-gray-500 text-sm">热量缺口</div>
+                                <div class="text-2xl font-bold calorie-deficit">1043 千卡</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>卡路里摄入</span>
+                                <span class="calorie-percentage">43%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-primary h-2.5 rounded-full calorie-progress-bar" style="width: 43%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 营养分析图表 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">营养摄入比例</h3>
+                        <div class="h-64">
+                            <canvas id="nutritionChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-6 text-center">
+                            <div>
+                                <div class="text-primary font-bold">25%</div>
+                                <div class="text-xs text-gray-500">蛋白质</div>
+                            </div>
+                            <div>
+                                <div class="text-secondary font-bold">55%</div>
+                                <div class="text-xs text-gray-500">碳水</div>
+                            </div>
+                            <div>
+                                <div class="text-accent font-bold">20%</div>
+                                <div class="text-xs text-gray-500">脂肪</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 饮食建议 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">饮食建议</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
+                                <span class="text-gray-600">您的蛋白质摄入充足，继续保持</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-exclamation-circle text-accent mt-1 mr-2"></i>
+                                <span class="text-gray-600">建议增加蔬菜摄入，提高纤维含量</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-info-circle text-primary mt-1 mr-2"></i>
+                                <span class="text-gray-600">今日饮水量目标：2000ml，已完成60%</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 运动模块 -->
+        <section id="exercise" class="module-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧：今日运动 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 运动进度 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">今日运动进度</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex flex-col items-center">
+                                <div class="relative mb-4">
+                                    <canvas id="exerciseProgressChart" width="180" height="180"></canvas>
+                                    <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                        <div class="text-3xl font-bold text-primary exercise-completion-percentage">65%</div>
+                                        <div class="text-sm text-gray-500">已完成</div>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <h4 class="font-medium mb-1">今日目标</h4>
+                                    <p class="text-gray-600 exercise-goal">30分钟运动</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col justify-center">
+                                <div class="mb-4">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>运动时长</span>
+                                        <span class="exercise-duration">19/30 分钟</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-primary h-2.5 rounded-full exercise-duration-bar" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>消耗热量</span>
+                                        <span class="exercise-calories-burned">245/350 千卡</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-secondary h-2.5 rounded-full exercise-calories-bar" style="width: 70%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>步数</span>
+                                        <span class="exercise-steps">5,234/8,000 步</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-accent h-2.5 rounded-full exercise-steps-bar" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 今日运动计划 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">今日运动计划</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mt-1 mr-4 flex-shrink-0">
+                                    <span class="text-primary font-bold">1</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-lg font-medium">热身运动</h4>
+                                        <span class="text-gray-500">5分钟</span>
+                                    </div>
+                                    <p class="text-gray-600 mt-1">动态拉伸、关节活动、轻度有氧</p>
+                                    <div class="mt-3 flex space-x-2">
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">已完成</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mt-1 mr-4 flex-shrink-0">
+                                    <span class="text-primary font-bold">2</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-lg font-medium">有氧运动</h4>
+                                        <span class="text-gray-500">15分钟</span>
+                                    </div>
+                                    <p class="text-gray-600 mt-1">慢跑、游泳或骑自行车，保持中等强度</p>
+                                    <div class="mt-3 flex space-x-2">
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">已完成</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mt-1 mr-4 flex-shrink-0">
+                                    <span class="text-primary font-bold">3</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-lg font-medium">力量训练</h4>
+                                        <span class="text-gray-500">10分钟</span>
+                                    </div>
+                                    <p class="text-gray-600 mt-1">俯卧撑、深蹲、平板支撑，各3组</p>
+                                    <div class="mt-3 flex space-x-2">
+                                        <button class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full hover:bg-primary hover:text-white transition-colors mark-complete-btn">
+                                            标记完成
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="w-full mt-6 bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors">
+                            开始运动
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 右侧：身体数据与推荐 -->
+                <div class="space-y-8">
+                    <!-- 身体数据 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">身体数据</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="text-gray-500 text-sm mb-1">体重</div>
+                                <div class="text-2xl font-bold body-weight">65 kg</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="text-gray-500 text-sm mb-1">BMI</div>
+                                <div class="text-2xl font-bold body-bmi">21.2</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="text-gray-500 text-sm mb-1">基础代谢(BMR)</div>
+                                <div class="text-2xl font-bold body-bmr">1680 千卡</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="text-gray-500 text-sm mb-1">每日消耗(TDEE)</div>
+                                <div class="text-2xl font-bold body-tdee text-secondary">1850 千卡</div>
+                            </div>
+                        </div>
+                        
+                        <button id="editBodyDataBtn" class="w-full text-primary border border-primary py-2 rounded-lg font-medium hover:bg-primary/5 transition-colors">
+                            编辑数据
+                        </button>
+                    </div>
+                    
+                    <!-- 推荐运动 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">推荐运动</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center p-3 border border-gray-100 rounded-lg hover:border-primary transition-colors">
+                                <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                                    <i class="fa fa-bicycle text-primary text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium">室内骑行</h4>
+                                    <div class="text-sm text-gray-500">20分钟 · 250千卡</div>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </div>
+                            
+                            <div class="flex items-center p-3 border border-gray-100 rounded-lg hover:border-primary transition-colors">
+                                <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                                    <i class="fa fa-male text-primary text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium">全身拉伸</h4>
+                                    <div class="text-sm text-gray-500">15分钟 · 80千卡</div>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </div>
+                            
+                            <div class="flex items-center p-3 border border-gray-100 rounded-lg hover:border-primary transition-colors">
+                                <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                                    <i class="fa fa-heartbeat text-primary text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium">HIIT训练</h4>
+                                    <div class="text-sm text-gray-500">10分钟 · 150千卡</div>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 睡眠模块 -->
+        <section id="sleep" class="module-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧：睡眠记录与分析 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 睡眠记录 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">记录睡眠</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-gray-700 mb-2">入睡时间</label>
+                                <input type="datetime-local" value="2023-07-15T23:30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 mb-2">起床时间</label>
+                                <input type="datetime-local" value="2023-07-16T07:15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 mb-2">睡眠备注</label>
+                                <textarea rows="3" placeholder="例如：入睡困难、夜间醒来..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"></textarea>
+                            </div>
+                        </div>
+                        
+                        <button class="w-full mt-6 bg-accent text-white py-3 rounded-lg font-medium hover:bg-accent/90 transition-colors">
+                            保存睡眠记录
+                        </button>
+                    </div>
+                    
+                    <!-- 睡眠周期图表 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">睡眠周期记录</h3>
+                        <div class="h-72">
+                            <canvas id="sleepCycleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：睡眠分析与建议 -->
+                <div class="space-y-8">
+                    <!-- 睡眠数据概览 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-6">睡眠数据</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-accent font-bold text-2xl">7.7h</div>
+                                <div class="text-gray-500 text-sm">总睡眠</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-primary font-bold text-2xl">2.5h</div>
+                                <div class="text-gray-500 text-sm">深度睡眠</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-secondary font-bold text-2xl">4.0h</div>
+                                <div class="text-gray-500 text-sm">浅度睡眠</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-gray-600 font-bold text-2xl">1.2h</div>
+                                <div class="text-gray-500 text-sm">做梦/清醒</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="text-gray-500 text-sm">睡眠评分</div>
+                                <div class="text-2xl font-bold text-accent">78分</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-gray-500 text-sm">与昨日相比</div>
+                                <div class="text-green-600 font-medium flex items-center justify-end">
+                                    <i class="fa fa-arrow-up mr-1"></i> 5分
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 睡眠分析图表 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">睡眠质量分析</h3>
+                        <div class="h-64">
+                            <canvas id="sleepChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 睡眠建议 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">睡眠建议</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-start">
+                                <i class="fa fa-moon-o text-accent mt-1 mr-2"></i>
+                                <span class="text-gray-600">您的深度睡眠时间略低于理想水平</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                                <span class="text-gray-600">睡前1小时避免使用电子设备</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                                <span class="text-gray-600">保持卧室温度在18-20°C</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                                <span class="text-gray-600">尝试睡前10分钟冥想放松</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 社区模块 -->
+        <section id="community" class="module-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧：社区动态 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 发布动态输入框 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="flex">
+                            <img src="https://picsum.photos/40/40?user" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                            <div class="flex-1">
+                                <textarea rows="3" placeholder="分享您的健康心得、打卡记录或提问..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"></textarea>
+                                <div class="flex justify-between mt-3">
+                                    <div class="flex space-x-4">
+                                        <button class="text-gray-500 hover:text-primary transition-colors flex items-center">
+                                            <i class="fa fa-image mr-1"></i> 图片
+                                        </button>
+                                        <button class="text-gray-500 hover:text-primary transition-colors flex items-center">
+                                            <i class="fa fa-smile-o mr-1"></i> 表情
+                                        </button>
+                                        <button class="text-gray-500 hover:text-primary transition-colors flex items-center">
+                                            <i class="fa fa-tag mr-1"></i> 话题
+                                        </button>
+                                    </div>
+                                    <button class="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+                                        发布
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 社区帖子列表 -->
+                    <div class="space-y-6">
+                        <!-- 帖子1 -->
+                        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div class="p-6">
+                                <div class="flex items-center mb-4">
+                                    <img src="https://picsum.photos/40/40?user1" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                                    <div>
+                                        <div class="font-medium">健康达人</div>
+                                        <div class="text-gray-500 text-sm">2小时前 · 饮食分享</div>
+                                    </div>
+                                    <button class="ml-auto text-gray-400 hover:text-gray-600">
+                                        <i class="fa fa-ellipsis-h"></i>
+                                    </button>
+                                </div>
+                                <p class="mb-4">今天尝试了新的健康沙拉配方，牛油果+鸡胸肉+藜麦，简单又美味，推荐给大家！做法放在评论区了~</p>
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    <img src="https://picsum.photos/300/200?foodpost1" alt="沙拉图片1" class="w-full h-40 object-cover rounded-lg">
+                                    <img src="https://picsum.photos/300/200?foodpost2" alt="沙拉图片2" class="w-full h-40 object-cover rounded-lg">
+                                </div>
+                                <div class="flex justify-between text-gray-500 border-t border-gray-100 pt-4">
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-thumbs-up mr-1"></i> 42
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-comment mr-1"></i> 8
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-share mr-1"></i> 分享
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-bookmark-o mr-1"></i> 收藏
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 评论区 -->
+                            <div class="bg-gray-50 p-4">
+                                <div class="flex mb-4">
+                                    <img src="https://picsum.photos/30/30?comment1" alt="评论用户头像" class="w-8 h-8 rounded-full object-cover mr-2">
+                                    <div class="flex-1 bg-white p-3 rounded-lg">
+                                        <div class="font-medium text-sm">健身爱好者</div>
+                                        <p class="text-sm mt-1">看起来很美味！请问沙拉酱用的是什么？</p>
+                                    </div>
+                                </div>
+                                <div class="flex">
+                                    <img src="https://picsum.photos/30/30?user1" alt="回复用户头像" class="w-8 h-8 rounded-full object-cover mr-2">
+                                    <div class="flex-1 bg-white p-3 rounded-lg">
+                                        <div class="font-medium text-sm">健康达人 <span class="text-gray-400 font-normal">回复 健身爱好者</span></div>
+                                        <p class="text-sm mt-1">用的是橄榄油+柠檬汁+少许黑胡椒，健康又低卡~</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- 评论输入框 -->
+                                <div class="flex mt-4">
+                                    <img src="https://picsum.photos/40/40?user" alt="当前用户头像" class="w-8 h-8 rounded-full object-cover mr-2">
+                                    <input type="text" placeholder="发表评论..." class="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 帖子2 - 运动打卡 -->
+                        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div class="p-6">
+                                <div class="flex items-center mb-4">
+                                    <img src="https://picsum.photos/40/40?user5" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                                    <div>
+                                        <div class="font-medium">跑步爱好者</div>
+                                        <div class="text-gray-500 text-sm">3小时前 · 运动打卡</div>
+                                    </div>
+                                    <button class="ml-auto text-gray-400 hover:text-gray-600">
+                                        <i class="fa fa-ellipsis-h"></i>
+                                    </button>
+                                </div>
+                                <p class="mb-4">今天完成了5公里跑步，配速5'30"，感觉状态不错！坚持就是胜利！#运动打卡# #跑步#</p>
+                                <div class="bg-secondary/5 p-4 rounded-lg mb-4">
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex items-center">
+                                            <i class="fa fa-heartbeat text-secondary mr-2"></i>
+                                            <span class="font-medium">运动数据</span>
+                                        </div>
+                                        <span class="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded-full">已认证</span>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-2 mt-3">
+                                        <div class="text-center">
+                                            <div class="text-secondary font-bold">5.00</div>
+                                            <div class="text-xs text-gray-500">公里</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-secondary font-bold">27:30</div>
+                                            <div class="text-xs text-gray-500">用时</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-secondary font-bold">5'30"</div>
+                                            <div class="text-xs text-gray-500">配速</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <img src="https://picsum.photos/600/300?running" alt="跑步记录" class="w-full h-48 object-cover rounded-lg mb-4">
+                                <div class="flex justify-between text-gray-500 border-t border-gray-100 pt-4">
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-thumbs-up mr-1"></i> 28
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-comment mr-1"></i> 5
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-share mr-1"></i> 分享
+                                    </button>
+                                    <button class="flex items-center hover:text-primary transition-colors">
+                                        <i class="fa fa-bookmark-o mr-1"></i> 收藏
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 加载更多 -->
+                    <div class="text-center">
+                        <button class="px-6 py-3 border border-gray-300 rounded-full text-gray-600 font-medium hover:bg-gray-50 transition-colors">
+                            加载更多 <i class="fa fa-refresh ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 右侧：社区功能 -->
+                <div class="space-y-8">
+                    <!-- 社区分类导航 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">社区分类</h3>
+                        <div class="space-y-2">
+                            <button class="w-full text-left px-4 py-3 bg-primary/10 text-primary rounded-lg font-medium">全部动态</button>
+                            <button class="w-full text-left px-4 py-3 bg-gray-50 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-colors">饮食分享</button>
+                            <button class="w-full text-left px-4 py-3 bg-gray-50 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-colors">运动打卡</button>
+                            <button class="w-full text-left px-4 py-3 bg-gray-50 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-colors">睡眠改善</button>
+                            <button class="w-full text-left px-4 py-3 bg-gray-50 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-colors">健康问答</button>
+                            <button class="w-full text-left px-4 py-3 bg-gray-50 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-colors">经验交流</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 健康排行榜 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">健康打卡排行榜</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                                <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold mr-3">1</div>
+                                <img src="https://picsum.photos/40/40?user2" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                                <div class="flex-1">
+                                    <div class="font-medium">阳光健身</div>
+                                    <div class="text-gray-500 text-sm">连续打卡 42 天</div>
+                                </div>
+                                <div class="text-primary font-bold">1250 分</div>
+                            </div>
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold mr-3">2</div>
+                                <img src="https://picsum.photos/40/40?user3" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                                <div class="flex-1">
+                                    <div class="font-medium">健康饮食家</div>
+                                    <div class="text-gray-500 text-sm">连续打卡 36 天</div>
+                                </div>
+                                <div class="text-primary font-bold">1180 分</div>
+                            </div>
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold mr-3">3</div>
+                                <img src="https://picsum.photos/40/40?user4" alt="用户头像" class="w-10 h-10 rounded-full object-cover mr-3">
+                                <div class="flex-1">
+                                    <div class="font-medium">早睡早起</div>
+                                    <div class="text-gray-500 text-sm">连续打卡 28 天</div>
+                                </div>
+                                <div class="text-primary font-bold">1050 分</div>
+                            </div>
+                        </div>
+                        <button class="w-full mt-4 text-primary border border-primary py-2 rounded-lg font-medium hover:bg-primary/5 transition-colors">
+                            查看完整排名
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
+        <div class="flex justify-around">
+            <button class="module-tab flex flex-col items-center py-2 px-4 text-primary" data-module="diet">
+                <i class="fa fa-cutlery text-xl"></i>
+                <span class="text-xs mt-1">饮食</span>
+            </button>
+            <button class="module-tab flex flex-col items-center py-2 px-4 text-gray-500" data-module="exercise">
+                <i class="fa fa-heartbeat text-xl"></i>
+                <span class="text-xs mt-1">运动</span>
+            </button>
+            <button class="module-tab flex flex-col items-center py-2 px-4 text-gray-500" data-module="sleep">
+                <i class="fa fa-moon-o text-xl"></i>
+                <span class="text-xs mt-1">睡眠</span>
+            </button>
+            <button class="module-tab flex flex-col items-center py-2 px-4 text-gray-500" data-module="community">
+                <i class="fa fa-users text-xl"></i>
+                <span class="text-xs mt-1">社区</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 身体数据编辑模态框 -->
+    <div id="bodyDataModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">编辑身体数据</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 mb-2">体重 (kg)</label>
+                    <input type="number" id="edit-weight" value="65" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-2">身高 (cm)</label>
+                    <input type="number" id="edit-height" value="175" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-2">年龄</label>
+                    <input type="number" id="edit-age" value="30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-2">性别</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" id="edit-gender-male" value="male" checked class="mr-2">
+                            <span>男</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" id="edit-gender-female" value="female" class="mr-2">
+                            <span>女</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-2">活动水平</label>
+                    <select id="edit-activity-level" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        <option value="1.2">久坐不动（几乎不运动）</option>
+                        <option value="1.375" selected>轻度活动（每周运动1-3天）</option>
+                        <option value="1.55">中度活动（每周运动3-5天）</option>
+                        <option value="1.725">高度活动（每周运动6-7天）</option>
+                        <option value="1.9">极高活动（每天训练2次）</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex space-x-3">
+                <button id="cancelEditBtn" class="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-medium hover:bg-gray-50 transition-colors">
+                    取消
+                </button>
+                <button id="saveEditBtn" class="flex-1 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 存储用户数据
+        let userData = {
+            weight: 65,
+            height: 175,
+            age: 30,
+            gender: 'male',
+            activityLevel: 1.375,
+            bmr: 0,
+            tdee: 0,
+            bmi: 0
+        };
+        
+        // 简单的食物热量数据库（每100克）
+        const foodCaloriesDB = {
+            '鸡蛋': 143,
+            '牛奶': 50,
+            '面包': 265,
+            '全麦面包': 247,
+            '米饭': 130,
+            '糙米饭': 111,
+            '鸡肉': 165,
+            '鸡胸肉': 165,
+            '苹果': 52,
+            '香蕉': 89,
+            '牛肉': 250,
+            '鱼肉': 206,
+            '青菜': 20,
+            '西兰花': 34,
+            '土豆': 77,
+            '面条': 158,
+            '燕麦': 389,
+            '酸奶': 59
+        };
+        
+        // 计算BMR（基础代谢率）使用米弗林-圣乔罗方程
+        function calculateBMR() {
+            if (userData.gender === 'male') {
+                // 男性: BMR = 10 × 体重(kg) + 6.25 × 身高(cm) - 5 × 年龄(岁) + 5
+                userData.bmr = Math.round(10 * userData.weight + 6.25 * userData.height - 5 * userData.age + 5);
+            } else {
+                // 女性: BMR = 10 × 体重(kg) + 6.25 × 身高(cm) - 5 × 年龄(岁) - 161
+                userData.bmr = Math.round(10 * userData.weight + 6.25 * userData.height - 5 * userData.age - 161);
+            }
+            return userData.bmr;
+        }
+        
+        // 计算BMI（身体质量指数）
+        function calculateBMI() {
+            // BMI = 体重(kg) / (身高(m))²
+            const heightInMeters = userData.height / 100;
+            userData.bmi = parseFloat((userData.weight / (heightInMeters * heightInMeters)).toFixed(1));
+            return userData.bmi;
+        }
+        
+        // 计算TDEE（每日总能量消耗）
+        function calculateTDEE() {
+            // TDEE = BMR × 活动系数
+            userData.tdee = Math.round(userData.bmr * userData.activityLevel);
+            return userData.tdee;
+        }
+        
+        // 计算总摄入卡路里
+        function calculateTotalCaloriesConsumed() {
+            let total = 0;
+            document.querySelectorAll('.meal-total').forEach(el => {
+                const calories = parseInt(el.textContent);
+                if (!isNaN(calories)) {
+                    total += calories;
+                }
+            });
+            return total;
+        }
+        
+        // 计算热量缺口（使用绝对值）
+        function calculateCalorieDeficit() {
+            const consumed = calculateTotalCaloriesConsumed();
+            // 使用Math.abs()获取绝对值
+            return Math.abs(consumed - userData.tdee);
+        }
+        
+        // 更新所有计算值和UI显示
+        function updateCalculationsAndUI() {
+            calculateBMR();
+            calculateBMI();
+            calculateTDEE();
+            
+            // 更新身体数据显示
+            document.querySelector('.body-weight').textContent = `${userData.weight} kg`;
+            document.querySelector('.body-bmi').textContent = userData.bmi;
+            document.querySelector('.body-bmr').textContent = `${userData.bmr} 千卡`;
+            document.querySelector('.body-tdee').textContent = `${userData.tdee} 千卡`;
+            
+            // 更新饮食概览
+            const totalConsumed = calculateTotalCaloriesConsumed();
+            document.querySelector('.total-calories-consumed').textContent = `${totalConsumed} 千卡`;
+            document.querySelector('.daily-energy-expenditure').textContent = `${userData.tdee} 千卡`;
+            
+            // 计算热量缺口（现在是绝对值）
+            const deficit = calculateCalorieDeficit();
+            const deficitEl = document.querySelector('.calorie-deficit');
+            // 移除正负符号
+            deficitEl.textContent = `${deficit} 千卡`;
+            
+            // 根据原始差值（非绝对值）设置颜色，但显示绝对值
+            const rawDifference = calculateTotalCaloriesConsumed() - userData.tdee;
+            if (rawDifference > 0) {
+                deficitEl.classList.remove('text-green-600', 'text-red-600');
+                deficitEl.classList.add('text-red-600'); // 热量盈余-红色
+            } else if (rawDifference < 0) {
+                deficitEl.classList.remove('text-green-600', 'text-red-600');
+                deficitEl.classList.add('text-green-600'); // 热量缺口-绿色
+            } else {
+                deficitEl.classList.remove('text-green-600', 'text-red-600');
+            }
+            
+            // 更新摄入百分比
+            const percentage = Math.round((totalConsumed / userData.tdee) * 100);
+            document.querySelector('.calorie-percentage').textContent = `${percentage}%`;
+            document.querySelector('.calorie-progress-bar').style.width = `${percentage}%`;
+            
+            // 根据热量缺口调整运动计划
+            adjustExercisePlanBasedOnDeficit(deficit);
+        }
+        
+        // 根据热量缺口调整运动计划
+        function adjustExercisePlanBasedOnDeficit(deficit) {
+            // 使用原始差值来决定是否需要增加/减少运动
+            const rawDifference = calculateTotalCaloriesConsumed() - userData.tdee;
+            
+            // 默认目标
+            let baseDuration = 30; // 分钟
+            let baseCalories = 350; // 千卡
+            
+            // 根据原始差值调整目标（正数表示摄入过多，需要增加运动）
+            if (rawDifference > 500) {
+                // 热量盈余超过500，大幅增加运动
+                baseDuration = 60;
+                baseCalories = 700;
+            } else if (rawDifference > 200) {
+                // 热量盈余200-500，适度增加运动
+                baseDuration = 45;
+                baseCalories = 500;
+            } else if (rawDifference < -300) {
+                // 热量缺口过大，减少运动
+                baseDuration = 15;
+                baseCalories = 150;
+            }
+            
+            // 更新UI
+            const exerciseGoalEl = document.querySelector('.exercise-goal');
+            exerciseGoalEl.textContent = `${baseDuration}分钟运动`;
+            
+            // 假设已完成部分按比例
+            const completedRatio = 0.65; // 65%完成度
+            const completedDuration = Math.round(baseDuration * completedRatio);
+            const completedCalories = Math.round(baseCalories * completedRatio);
+            
+            document.querySelector('.exercise-duration').textContent = `${completedDuration}/${baseDuration} 分钟`;
+            document.querySelector('.exercise-calories-burned').textContent = `${completedCalories}/${baseCalories} 千卡`;
+            
+            // 更新进度条
+            document.querySelector('.exercise-duration-bar').style.width = `${Math.round(completedRatio * 100)}%`;
+            document.querySelector('.exercise-calories-bar').style.width = `${Math.round(completedRatio * 100)}%`;
+            document.querySelector('.exercise-completion-percentage').textContent = `${Math.round(completedRatio * 100)}%`;
+        }
+        
+        // 添加食物功能
+        function addFood(mealType) {
+            const foodNameInput = document.querySelector(`#${mealType} .food-name-input`);
+            const foodAmountInput = document.querySelector(`#${mealType} .food-amount-input`);
+            const foodList = document.querySelector(`.food-list[data-meal="${mealType}"]`);
+            
+            const foodName = foodNameInput.value.trim();
+            const foodAmount = parseInt(foodAmountInput.value.trim());
+            
+            if (!foodName || isNaN(foodAmount) || foodAmount <= 0) {
+                alert('请输入有效的食物名称和重量');
+                return;
+            }
+            
+            // 获取食物热量（每100克），未知食物默认按100千卡/100克计算
+            const caloriesPer100g = foodCaloriesDB[foodName] || 100;
+            const totalCalories = Math.round((caloriesPer100g * foodAmount) / 100);
+            
+            // 创建新食物项
+            const foodItem = document.createElement('div');
+            foodItem.className = 'flex justify-between items-center py-3 border-b border-gray-100';
+            
+            // 生成与食物相关的图片ID
+            const foodImageId = foodName.replace(/\s+/g, '').toLowerCase();
+            
+            foodItem.innerHTML = `
+                <div class="flex items-center">
+                    <img src="https://picsum.photos/50/50?${foodImageId}" alt="${foodName}" class="w-10 h-10 rounded-full object-cover mr-3">
+                    <div>
+                        <span class="font-medium">${foodName}</span>
+                        <span class="text-gray-500 text-sm ml-2">${foodAmount}g</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="text-right mr-3">
+                        <span class="font-medium">${totalCalories}</span>
+                        <span class="text-gray-500 text-sm ml-1">千卡</span>
+                    </div>
+                    <button class="text-gray-400 hover:text-red-500 transition-colors delete-food-btn">
+                        <i class="fa fa-trash-o"></i>
+                    </button>
+                </div>
+            `;
+            
+            // 移除"还没有添加食物"的提示（如果存在）
+            const emptyMessage = foodList.querySelector('.text-center');
+            if (emptyMessage) {
+                foodList.removeChild(emptyMessage);
+            }
+            
+            // 添加新食物项
+            foodList.appendChild(foodItem);
+            
+            // 为新添加的删除按钮绑定事件
+            foodItem.querySelector('.delete-food-btn').addEventListener('click', function() {
+                deleteFood(this, mealType);
+            });
+            
+            // 清空输入框
+            foodNameInput.value = '';
+            foodAmountInput.value = '';
+            
+            // 更新该餐总热量
+            updateMealTotal(mealType);
+        }
+        
+        // 删除食物功能
+        function deleteFood(deleteBtn, mealType) {
+            const foodItem = deleteBtn.closest('.flex.justify-between');
+            const foodList = foodItem.parentElement;
+            
+            // 移除食物项
+            foodList.removeChild(foodItem);
+            
+            // 如果列表为空，显示提示信息
+            if (foodList.children.length === 0) {
+                const mealNames = {
+                    'breakfast': '早餐',
+                    'lunch': '午餐',
+                    'dinner': '晚餐',
+                    'snack': '加餐'
+                };
+                
+                foodList.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <i class="fa fa-cutlery text-3xl mb-2 opacity-50"></i>
+                        <p>还没有添加${mealNames[mealType]}食物</p>
+                    </div>
+                `;
+            }
+            
+            // 更新该餐总热量
+            updateMealTotal(mealType);
+        }
+        
+        // 更新餐点总热量
+        function updateMealTotal(mealType) {
+            const foodList = document.querySelector(`.food-list[data-meal="${mealType}"]`);
+            const totalElement = document.querySelector(`.meal-total[data-meal="${mealType}"]`);
+            
+            let totalCalories = 0;
+            
+            // 计算该餐所有食物的总热量
+            foodList.querySelectorAll('.font-medium:not(.text-gray-500)').forEach(calorieElement => {
+                const calories = parseInt(calorieElement.textContent);
+                if (!isNaN(calories)) {
+                    totalCalories += calories;
+                }
+            });
+            
+            // 更新显示
+            totalElement.textContent = `${totalCalories} 千卡`;
+            
+            // 更新整体计算
+            updateCalculationsAndUI();
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化计算
+            updateCalculationsAndUI();
+            
+            // 获取所有模块标签和内容
+            const moduleTabs = document.querySelectorAll('.module-tab');
+            const moduleContents = document.querySelectorAll('.module-content');
+            const moduleTitle = document.getElementById('module-title');
+            
+            // 模块标题映射
+            const moduleTitles = {
+                'diet': '饮食管理',
+                'exercise': '运动计划',
+                'sleep': '睡眠分析',
+                'community': '健康社区'
+            };
+            
+            // 为每个标签添加点击事件
+            moduleTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const module = this.getAttribute('data-module');
+                    
+                    // 更新标签状态
+                    moduleTabs.forEach(t => {
+                        t.classList.remove('text-primary');
+                        t.classList.add('text-gray-600');
+                    });
+                    this.classList.remove('text-gray-600');
+                    this.classList.add('text-primary');
+                    
+                    // 更新内容显示
+                    moduleContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(module).classList.add('active');
+                    
+                    // 更新模块标题
+                    moduleTitle.textContent = moduleTitles[module];
+                    
+                    // 如果是首次切换到需要图表的模块，则初始化图表
+                    if (module === 'exercise' && typeof exerciseProgressChart === 'undefined') {
+                        initExerciseProgressChart();
+                    }
+                    if (module === 'sleep' && typeof sleepChart === 'undefined') {
+                        initSleepCharts();
+                    }
+                });
+            });
+            
+            // 餐点切换功能
+            const mealTabs = document.querySelectorAll('.meal-tab');
+            const mealContents = document.querySelectorAll('.meal-content');
+            
+            mealTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const meal = this.getAttribute('data-meal');
+                    
+                    // 更新标签状态
+                    mealTabs.forEach(t => {
+                        t.classList.remove('text-primary', 'border-b-2', 'border-primary');
+                        t.classList.add('text-gray-500');
+                    });
+                    this.classList.remove('text-gray-500');
+                    this.classList.add('text-primary', 'border-b-2', 'border-primary');
+                    
+                    // 更新内容显示
+                    mealContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(meal).classList.add('active');
+                });
+            });
+            
+            // 初始化营养分析图表
+            const nutritionCtx = document.getElementById('nutritionChart').getContext('2d');
+            const nutritionChart = new Chart(nutritionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['蛋白质', '碳水化合物', '脂肪'],
+                    datasets: [{
+                        data: [25, 55, 20],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(245, 158, 11, 0.7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+            
+            // 初始化运动进度图表
+            let exerciseProgressChart;
+            function initExerciseProgressChart() {
+                const progressCtx = document.getElementById('exerciseProgressChart').getContext('2d');
+                const completionPercentage = parseInt(document.querySelector('.exercise-completion-percentage').textContent);
+                
+                exerciseProgressChart = new Chart(progressCtx, {
+                    type: 'doughnut',
+                    data: {
+                        datasets: [{
+                            data: [completionPercentage, 100 - completionPercentage],
+                            backgroundColor: [
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(226, 232, 240, 0.8)'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '80%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: false
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 初始化睡眠图表
+            let sleepChart, sleepCycleChart;
+            function initSleepCharts() {
+                // 睡眠分析图表
+                const sleepCtx = document.getElementById('sleepChart').getContext('2d');
+                sleepChart = new Chart(sleepCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['深度睡眠', '浅度睡眠', '做梦', '清醒'],
+                        datasets: [
+                            {
+                                label: '实际睡眠',
+                                data: [2.5, 4, 1, 0.5],
+                                backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                                borderColor: 'rgba(245, 158, 11, 1)',
+                                pointBackgroundColor: 'rgba(245, 158, 11, 1)',
+                                pointBorderColor: '#fff'
+                            },
+                            {
+                                label: '理想睡眠',
+                                data: [3, 4, 1, 0],
+                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                                pointBorderColor: '#fff'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: {
+                                    display: true
+                                },
+                                suggestedMin: 0,
+                                suggestedMax: 5,
+                                ticks: {
+                                    stepSize: 1,
+                                    callback: function(value) {
+                                        return value + 'h';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // 睡眠周期图表
+                const cycleCtx = document.getElementById('sleepCycleChart').getContext('2d');
+                sleepCycleChart = new Chart(cycleCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['23:30', '00:30', '01:30', '02:30', '03:30', '04:30', '05:30', '06:30', '07:15'],
+                        datasets: [{
+                            label: '睡眠深度',
+                            data: [1, 2, 3, 4, 3, 4, 3, 2, 1],
+                            borderColor: 'rgba(245, 158, 11, 1)',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: 'rgba(245, 158, 11, 1)',
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                reverse: true,
+                                min: 0,
+                                max: 4,
+                                ticks: {
+                                    stepSize: 1,
+                                    callback: function(value) {
+                                        const labels = ['清醒', '浅睡', '做梦', '中度深睡', '深度睡眠'];
+                                        return labels[value];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 社区点赞功能
+            document.querySelectorAll('.fa-thumbs-up').forEach(icon => {
+                icon.parentElement.addEventListener('click', function() {
+                    if (this.classList.contains('text-primary')) {
+                        this.classList.remove('text-primary');
+                        this.classList.add('text-gray-500');
+                        // 减少点赞数
+                        const count = parseInt(this.innerHTML.match(/\d+/)[0]);
+                        this.innerHTML = this.innerHTML.replace(/\d+/, count - 1);
+                    } else {
+                        this.classList.remove('text-gray-500');
+                        this.classList.add('text-primary');
+                        // 增加点赞数
+                        const count = parseInt(this.innerHTML.match(/\d+/)[0]);
+                        this.innerHTML = this.innerHTML.replace(/\d+/, count + 1);
+                    }
+                });
+            });
+            
+            // 标记运动完成功能
+            document.querySelectorAll('.mark-complete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.remove('bg-gray-100', 'text-gray-800', 'hover:bg-primary', 'hover:text-white');
+                    this.classList.add('bg-green-100', 'text-green-800');
+                    this.textContent = '已完成';
+                    
+                    // 更新运动进度
+                    document.querySelector('.exercise-duration').textContent = '30/30 分钟';
+                    document.querySelector('.exercise-calories-burned').textContent = '350/350 千卡';
+                    document.querySelector('.exercise-duration-bar').style.width = '100%';
+                    document.querySelector('.exercise-calories-bar').style.width = '100%';
+                    document.querySelector('.exercise-completion-percentage').textContent = '100%';
+                    
+                    // 更新图表
+                    if (typeof exerciseProgressChart !== 'undefined') {
+                        exerciseProgressChart.data.datasets[0].data = [100, 0];
+                        exerciseProgressChart.update();
+                    }
+                    
+                    // 更新总消耗和热量缺口
+                    updateCalculationsAndUI();
+                });
+            });
+            
+            // 身体数据编辑功能
+            const bodyDataModal = document.getElementById('bodyDataModal');
+            const editBodyDataBtn = document.getElementById('editBodyDataBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            const saveEditBtn = document.getElementById('saveEditBtn');
+            
+            // 打开模态框
+            editBodyDataBtn.addEventListener('click', function() {
+                // 填充当前数据到表单
+                document.getElementById('edit-weight').value = userData.weight;
+                document.getElementById('edit-height').value = userData.height;
+                document.getElementById('edit-age').value = userData.age;
+                
+                if (userData.gender === 'male') {
+                    document.getElementById('edit-gender-male').checked = true;
+                } else {
+                    document.getElementById('edit-gender-female').checked = true;
+                }
+                
+                document.getElementById('edit-activity-level').value = userData.activityLevel;
+                
+                bodyDataModal.classList.add('active');
+                // 防止背景滚动
+                document.body.style.overflow = 'hidden';
+            });
+            
+            // 关闭模态框的函数
+            function closeModal() {
+                bodyDataModal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            // 关闭模态框事件
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelEditBtn.addEventListener('click', closeModal);
+            
+            // 点击模态框外部关闭
+            bodyDataModal.addEventListener('click', function(e) {
+                if (e.target === bodyDataModal) {
+                    closeModal();
+                }
+            });
+            
+            // 保存编辑
+            saveEditBtn.addEventListener('click', function() {
+                // 更新用户数据
+                userData.weight = parseFloat(document.getElementById('edit-weight').value);
+                userData.height = parseInt(document.getElementById('edit-height').value);
+                userData.age = parseInt(document.getElementById('edit-age').value);
+                userData.gender = document.getElementById('edit-gender-male').checked ? 'male' : 'female';
+                userData.activityLevel = parseFloat(document.getElementById('edit-activity-level').value);
+                
+                // 更新计算和UI
+                updateCalculationsAndUI();
+                
+                // 如果运动图表已初始化，更新它
+                if (typeof exerciseProgressChart !== 'undefined') {
+                    const completionPercentage = parseInt(document.querySelector('.exercise-completion-percentage').textContent);
+                    exerciseProgressChart.data.datasets[0].data = [completionPercentage, 100 - completionPercentage];
+                    exerciseProgressChart.update();
+                }
+                
+                // 关闭模态框
+                closeModal();
+            });
+            
+            // 添加食物按钮事件绑定
+            document.querySelectorAll('.add-food-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const mealType = this.getAttribute('data-meal');
+                    addFood(mealType);
+                });
+            });
+            
+            // 删除食物按钮事件绑定
+            document.querySelectorAll('.delete-food-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const mealType = this.closest('.meal-content').id;
+                    deleteFood(this, mealType);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
