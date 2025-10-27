@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>每日打卡系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  
+  <!-- 配置Tailwind自定义主题 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6', // 主色调：蓝色
+            secondary: '#10B981', // 辅助色：绿色（用于成功状态）
+            accent: '#F59E0B', // 强调色：橙色
+            neutral: '#6B7280', // 中性色：灰色
+            dark: '#1F2937',
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .card-shadow {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .btn-hover {
+        @apply transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5;
+      }
+      .card-hover {
+        @apply transition-all duration-300 hover:shadow-xl;
+      }
+    }
+  </style>
+  
+  <style>
+    /* 基础动画定义 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease forwards;
+    }
+    
+    /* 日历单元格样式 */
+    .calendar-day {
+      aspect-ratio: 1/1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    .calendar-day打卡 {
+      background-color: rgba(16, 185, 129, 0.2);
+      border-radius: 50%;
+    }
+    
+    .calendar-day打卡::after {
+      content: '✓';
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      color: #10B981;
+      font-weight: bold;
+    }
+    
+    /* 平滑滚动 */
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+
+<body class="font-inter bg-gray-50 text-dark min-h-screen">
+  <!-- 导航栏 -->
+  <nav id="navbar" class="bg-white shadow-md fixed w-full z-50 transition-all duration-300">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-calendar-check-o text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-primary">每日打卡</h1>
+      </div>
+      
+      <div class="hidden md:flex items-center space-x-6">
+        <a href="#calendar" class="text-neutral hover:text-primary transition-colors">日历</a>
+        <a href="#stats" class="text-neutral hover:text-primary transition-colors">统计</a>
+        <a href="#history" class="text-neutral hover:text-primary transition-colors">历史</a>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <div id="user-info" class="hidden md:flex items-center space-x-2">
+          <img src="https://picsum.photos/id/64/40/40" alt="用户头像" class="w-8 h-8 rounded-full object-cover">
+          <span id="username-display" class="font-medium">访客</span>
+        </div>
+        <button id="login-btn" class="bg-primary text-white px-4 py-2 rounded-lg btn-hover">
+          <i class="fa fa-user mr-1"></i> 登录
+        </button>
+        <button id="mobile-menu-btn" class="md:hidden text-dark">
+          <i class="fa fa-bars text-xl"></i>
+        </button>
+      </div>
+    </div>
+    
+    <!-- 移动端菜单 -->
+    <div id="mobile-menu" class="md:hidden hidden bg-white border-t animate-fadeIn">
+      <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+        <a href="#calendar" class="py-2 text-neutral hover:text-primary transition-colors">日历</a>
+        <a href="#stats" class="py-2 text-neutral hover:text-primary transition-colors">统计</a>
+        <a href="#history" class="py-2 text-neutral hover:text-primary transition-colors">历史</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 pt-24 pb-16">
+    <!-- 欢迎区域 -->
+    <section class="mb-10 animate-fadeIn" style="animation-delay: 0.1s">
+      <div class="bg-gradient-to-r from-primary to-blue-400 rounded-2xl p-6 md:p-8 text-white">
+        <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-2">欢迎回来！</h2>
+        <p class="text-blue-100 mb-6 text-lg">今天是 <span id="current-date" class="font-medium"></span>，完成今日打卡，坚持就是胜利！</p>
+        <button id="checkin-btn" class="bg-white text-primary px-6 py-3 rounded-lg font-bold text-lg btn-hover">
+          <i class="fa fa-check-circle mr-2"></i>立即打卡
+        </button>
+      </div>
+    </section>
+    
+    <!-- 打卡日历 -->
+    <section id="calendar" class="mb-12 animate-fadeIn" style="animation-delay: 0.2s">
+      <div class="bg-white rounded-xl p-6 card-shadow card-hover">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold">打卡日历</h2>
+          <div class="flex space-x-2">
+            <button id="prev-month" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <i class="fa fa-chevron-left"></i>
+            </button>
+            <button id="next-month" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <i class="fa fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        
+        <h3 id="current-month" class="text-xl font-semibold mb-4 text-center"></h3>
+        
+        <!-- 星期标题 -->
+        <div class="grid grid-cols-7 gap-1 mb-2">
+          <div class="text-center text-neutral font-medium py-2">日</div>
+          <div class="text-center text-neutral font-medium py-2">一</div>
+          <div class="text-center text-neutral font-medium py-2">二</div>
+          <div class="text-center text-neutral font-medium py-2">三</div>
+          <div class="text-center text-neutral font-medium py-2">四</div>
+          <div class="text-center text-neutral font-medium py-2">五</div>
+          <div class="text-center text-neutral font-medium py-2">六</div>
+        </div>
+        
+        <!-- 日历网格 -->
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1">
+          <!-- 日历内容将通过JavaScript动态生成 -->
+        </div>
+      </div>
+    </section>
+    
+    <!-- 统计数据 -->
+    <section id="stats" class="mb-12 animate-fadeIn" style="animation-delay: 0.3s">
+      <h2 class="text-2xl font-bold mb-6">打卡统计</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- 连续打卡 -->
+        <div class="bg-white rounded-xl p-6 card-shadow card-hover">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-neutral">连续打卡</h3>
+            <i class="fa fa-fire text-accent text-2xl"></i>
+          </div>
+          <p id="streak-count" class="text-4xl font-bold">0</p>
+          <p class="text-neutral mt-2">天</p>
+        </div>
+        
+        <!-- 本月打卡 -->
+        <div class="bg-white rounded-xl p-6 card-shadow card-hover">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-neutral">本月打卡</h3>
+            <i class="fa fa-calendar text-primary text-2xl"></i>
+          </div>
+          <p id="monthly-count" class="text-4xl font-bold">0</p>
+          <p class="text-neutral mt-2">天</p>
+        </div>
+        
+        <!-- 总打卡次数 -->
+        <div class="bg-white rounded-xl p-6 card-shadow card-hover">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-neutral">总打卡次数</h3>
+            <i class="fa fa-check-square-o text-secondary text-2xl"></i>
+          </div>
+          <p id="total-count" class="text-4xl font-bold">0</p>
+          <p class="text-neutral mt-2">次</p>
+        </div>
+      </div>
+      
+      <!-- 打卡趋势图表 -->
+      <div class="bg-white rounded-xl p-6 card-shadow card-hover">
+        <h3 class="text-xl font-semibold mb-6">打卡趋势</h3>
+        <div class="h-64">
+          <canvas id="checkin-chart"></canvas>
+        </div>
+      </div>
+    </section>
+    
+    <!-- 打卡历史 -->
+    <section id="history" class="animate-fadeIn" style="animation-delay: 0.4s">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">打卡历史</h2>
+        <div class="relative">
+          <input type="text" id="history-search" placeholder="搜索日期..." class="pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+          <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral"></i>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl overflow-hidden card-shadow">
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead>
+              <tr class="bg-gray-50 border-b">
+                <th class="px-6 py-4 text-left text-sm font-semibold text-neutral">日期</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-neutral">时间</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-neutral">状态</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- 历史记录将通过JavaScript动态生成 -->
+              <tr>
+                <td colspan="3" class="px-6 py-12 text-center text-neutral">
+                  暂无打卡记录
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- 分页 -->
+        <div class="px-6 py-4 border-t flex justify-between items-center">
+          <p class="text-sm text-neutral">显示 <span id="showing-range">0-0</span> 条，共 <span id="total-history">0</span> 条</p>
+          <div class="flex space-x-2">
+            <button id="prev-page" class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              <i class="fa fa-chevron-left text-xs"></i> 上一页
+            </button>
+            <button id="next-page" class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              下一页 <i class="fa fa-chevron-right text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-dark text-white py-8">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="flex items-center space-x-2 mb-4 md:mb-0">
+          <i class="fa fa-calendar-check-o text-primary text-2xl"></i>
+          <span class="text-xl font-bold">每日打卡</span>
+        </div>
+        
+        <div class="flex space-x-6 mb-4 md:mb-0">
+          <a href="#" class="text-gray-300 hover:text-white transition-colors"><i class="fa fa-github text-xl"></i></a>
+          <a href="#" class="text-gray-300 hover:text-white transition-colors"><i class="fa fa-twitter text-xl"></i></a>
+          <a href="#" class="text-gray-300 hover:text-white transition-colors"><i class="fa fa-envelope text-xl"></i></a>
+        </div>
+        
+        <p class="text-gray-400 text-sm">© 2023 每日打卡系统 版权所有</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 登录模态框 -->
+  <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl p-8 w-full max-w-md mx-4 animate-fadeIn">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold">用户登录</h3>
+        <button id="close-modal" class="text-neutral hover:text-dark">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="login-form">
+        <div class="mb-4">
+          <label for="username" class="block text-sm font-medium text-neutral mb-1">用户名</label>
+          <input type="text" id="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="请输入用户名" required>
+        </div>
+        
+        <div class="mb-6">
+          <label for="password" class="block text-sm font-medium text-neutral mb-1">密码</label>
+          <input type="password" id="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="请输入密码" required>
+        </div>
+        
+        <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-medium btn-hover">
+          登录
+        </button>
+      </form>
+      
+      <div class="mt-4 text-center">
+        <span class="text-neutral">还没有账号？</span>
+        <a href="#" class="text-primary hover:underline ml-1">立即注册</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 打卡成功提示 -->
+  <div id="success-toast" class="fixed bottom-6 right-6 bg-secondary text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center">
+    <i class="fa fa-check-circle mr-2"></i>
+    <span>打卡成功！</span>
+  </div>
+
+  <script>
+    // 全局变量
+    let currentUser = null;
+    let checkinData = JSON.parse(localStorage.getItem('checkinData')) || {};
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+    let currentPage = 1;
+    const itemsPerPage = 7;
+    
+    // DOM 元素
+    const navbar = document.getElementById('navbar');
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const currentDateEl = document.getElementById('current-date');
+    const checkinBtn = document.getElementById('checkin-btn');
+    const currentMonthEl = document.getElementById('current-month');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const prevMonthBtn = document.getElementById('prev-month');
+    const nextMonthBtn = document.getElementById('next-month');
+    const streakCountEl = document.getElementById('streak-count');
+    const monthlyCountEl = document.getElementById('monthly-count');
+    const totalCountEl = document.getElementById('total-count');
+    const historyTableBody = document.getElementById('history-table-body');
+    const historySearch = document.getElementById('history-search');
+    const showingRangeEl = document.getElementById('showing-range');
+    const totalHistoryEl = document.getElementById('total-history');
+    const prevPageBtn = document.getElementById('prev-page');
+    const nextPageBtn = document.getElementById('next-page');
+    const loginBtn = document.getElementById('login-btn');
+    const loginModal = document.getElementById('login-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    const loginForm = document.getElementById('login-form');
+    const usernameDisplay = document.getElementById('username-display');
+    const successToast = document.getElementById('success-toast');
+    let checkinChart = null;
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 检查本地存储中的用户
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        updateUserInterface();
+      }
+      
+      // 更新当前日期显示
+      updateCurrentDateDisplay();
+      
+      // 渲染日历
+      renderCalendar(currentYear, currentMonth);
+      
+      // 更新统计数据
+      updateStats();
+      
+      // 渲染历史记录
+      renderHistory();
+      
+      // 初始化图表
+      initChart();
+      
+      // 事件监听
+      setupEventListeners();
+    });
+    
+    // 设置事件监听器
+    function setupEventListeners() {
+      // 导航栏滚动效果
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 10) {
+          navbar.classList.add('py-2', 'shadow-lg');
+          navbar.classList.remove('py-3', 'shadow-md');
+        } else {
+          navbar.classList.add('py-3', 'shadow-md');
+          navbar.classList.remove('py-2', 'shadow-lg');
+        }
+      });
+      
+      // 移动端菜单
+      mobileMenuBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+      });
+      
+      // 月份导航
+      prevMonthBtn.addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar(currentYear, currentMonth);
+        updateStats();
+      });
+      
+      nextMonthBtn.addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar(currentYear, currentMonth);
+        updateStats();
+      });
+      
+      // 打卡按钮
+      checkinBtn.addEventListener('click', () => {
+        if (!currentUser) {
+          // 如果未登录，显示登录模态框
+          loginModal.classList.remove('hidden');
+          loginModal.classList.add('flex');
+          return;
+        }
+        
+        // 执行打卡
+        performCheckin();
+      });
+      
+      // 历史记录搜索
+      historySearch.addEventListener('input', () => {
+        currentPage = 1;
+        renderHistory();
+      });
+      
+      // 分页
+      prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderHistory();
+        }
+      });
+      
+      nextPageBtn.addEventListener('click', () => {
+        const filteredData = getFilteredCheckinData();
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderHistory();
+        }
+      });
+      
+      // 登录模态框
+      loginBtn.addEventListener('click', () => {
+        loginModal.classList.remove('hidden');
+        loginModal.classList.add('flex');
+      });
+      
+      closeModalBtn.addEventListener('click', () => {
+        loginModal.classList.add('hidden');
+        loginModal.classList.remove('flex');
+      });
+      
+      // 点击模态框外部关闭
+      loginModal.addEventListener('click', (e) => {
+        if (e.target === loginModal) {
+          loginModal.classList.add('hidden');
+          loginModal.classList.remove('flex');
+        }
+      });
+      
+      // 登录表单提交
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        // 简单验证（实际应用中应与后端交互）
+        if (username && password) {
+          currentUser = { username };
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          
+          // 关闭模态框
+          loginModal.classList.add('hidden');
+          loginModal.classList.remove('flex');
+          
+          // 重置表单
+          loginForm.reset();
+          
+          // 更新UI
+          updateUserInterface();
+        }
+      });
+    }
+    
+    // 更新用户界面
+    function updateUserInterface() {
+      if (currentUser) {
+        usernameDisplay.textContent = currentUser.username;
+        document.getElementById('user-info').classList.remove('hidden');
+        loginBtn.textContent = '退出';
+        loginBtn.addEventListener('click', logout);
+      } else {
+        document.getElementById('user-info').classList.add('hidden');
+        loginBtn.innerHTML = '<i class="fa fa-user mr-1"></i> 登录';
+      }
+    }
+    
+    // 退出登录
+    function logout() {
+      currentUser = null;
+      localStorage.removeItem('currentUser');
+      updateUserInterface();
+    }
+    
+    // 更新当前日期显示
+    function updateCurrentDateDisplay() {
+      const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+      currentDateEl.textContent = currentDate.toLocaleDateString('zh-CN', options);
+    }
+    
+    // 渲染日历
+    function renderCalendar(year, month) {
+      // 更新月份标题
+      const options = { year: 'numeric', month: 'long' };
+      currentMonthEl.textContent = new Date(year, month).toLocaleDateString('zh-CN', options);
+      
+      // 清空日历网格
+      calendarGrid.innerHTML = '';
+      
+      // 获取当月第一天是星期几
+      const firstDay = new Date(year, month, 1).getDay();
+      
+      // 获取当月的天数
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      
+      // 添加上个月的占位符
+      for (let i = 0; i < firstDay; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.classList.add('calendar-day', 'text-gray-200');
+        calendarGrid.appendChild(emptyDay);
+      }
+      
+      // 添加当月的日期
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayEl = document.createElement('div');
+        dayEl.classList.add('calendar-day', 'cursor-pointer', 'hover:bg-gray-100', 'rounded-full');
+        dayEl.textContent = day;
+        
+        // 格式化日期为 YYYY-MM-DD
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // 如果已打卡，添加打卡样式
+        if (checkinData[dateStr]) {
+          dayEl.classList.add('calendar-day打卡', 'font-medium');
+        }
+        
+        // 如果是今天，添加特殊样式
+        if (isCurrentMonth && today.getDate() === day) {
+          dayEl.classList.add('border-2', 'border-primary');
+        }
+        
+        // 未来的日期不可点击
+        const currentDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        if (dateStr > currentDateStr) {
+          dayEl.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+          dayEl.addEventListener('click', () => {
+            // 只有今天及以前的日期可打卡
+            if (dateStr <= currentDateStr && !checkinData[dateStr] && currentUser) {
+              performCheckin(dateStr);
+            }
+          });
+        }
+        
+        calendarGrid.appendChild(dayEl);
+      }
+    }
+    
+    // 执行打卡
+    function performCheckin(dateStr = null) {
+      // 如果没有指定日期，使用今天
+      if (!dateStr) {
+        const today = new Date();
+        dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      }
+      
+      // 如果已经打卡，直接返回
+      if (checkinData[dateStr]) {
+        return;
+      }
+      
+      // 记录打卡时间
+      const now = new Date();
+      checkinData[dateStr] = {
+        time: now.toISOString(),
+        user: currentUser ? currentUser.username : 'anonymous'
+      };
+      
+      // 保存到本地存储
+      localStorage.setItem('checkinData', JSON.stringify(checkinData));
+      
+      // 更新UI
+      renderCalendar(currentYear, currentMonth);
+      updateStats();
+      renderHistory();
+      updateChart();
+      
+      // 显示成功提示
+      showSuccessToast();
+    }
+    
+    // 显示成功提示
+    function showSuccessToast() {
+      successToast.classList.remove('translate-y-20', 'opacity-0');
+      successToast.classList.add('translate-y-0', 'opacity-100');
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        successToast.classList.add('translate-y-20', 'opacity-0');
+        successToast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3000);
+    }
+    
+    // 更新统计数据
+    function updateStats() {
+      // 计算总打卡次数
+      const totalCount = Object.keys(checkinData).length;
+      totalCountEl.textContent = totalCount;
+      
+      // 计算当月打卡次数
+      const monthStr = String(currentMonth + 1).padStart(2, '0');
+      const yearStr = String(currentYear);
+      const monthlyCount = Object.keys(checkinData).filter(date => 
+        date.startsWith(`${yearStr}-${monthStr}`)
+      ).length;
+      monthlyCountEl.textContent = monthlyCount;
+      
+      // 计算连续打卡天数
+      const streakCount = calculateStreak();
+      streakCountEl.textContent = streakCount;
+    }
+    
+    // 计算连续打卡天数
+    function calculateStreak() {
+      if (Object.keys(checkinData).length === 0) {
+        return 0;
+      }
+      
+      // 按日期排序
+      const sortedDates = Object.keys(checkinData).sort().reverse();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      // 检查今天是否打卡
+      let streak = checkinData[todayStr] ? 1 : 0;
+      let currentCheckDate = new Date(todayStr);
+      
+      // 如果今天没打卡，从昨天开始计算
+      if (streak === 0) {
+        currentCheckDate.setDate(currentCheckDate.getDate() - 1);
+      }
+      
+      // 检查连续打卡
+      while (true) {
+        currentCheckDate.setDate(currentCheckDate.getDate() - 1);
+        const dateStr = `${currentCheckDate.getFullYear()}-${String(currentCheckDate.getMonth() + 1).padStart(2, '0')}-${String(currentCheckDate.getDate()).padStart(2, '0')}`;
+        
+        if (checkinData[dateStr]) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      
+      return streak;
+    }
+    
+    // 获取过滤后的打卡数据
+    function getFilteredCheckinData() {
+      const searchTerm = historySearch.value.toLowerCase().trim();
+      let filteredData = Object.entries(checkinData);
+      
+      // 按日期降序排序
+      filteredData.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+      
+      // 搜索过滤
+      if (searchTerm) {
+        filteredData = filteredData.filter(([date]) => 
+          date.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      return filteredData;
+    }
+    
+    // 渲染历史记录
+    function renderHistory() {
+      const filteredData = getFilteredCheckinData();
+      const totalItems = filteredData.length;
+      
+      // 更新总数显示
+      totalHistoryEl.textContent = totalItems;
+      
+      // 分页处理
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+      const paginatedData = filteredData.slice(startIndex, endIndex);
+      
+      // 更新显示范围
+      showingRangeEl.textContent = totalItems > 0 ? `${startIndex + 1}-${endIndex}` : '0-0';
+      
+      // 更新分页按钮状态
+      prevPageBtn.disabled = currentPage === 1;
+      nextPageBtn.disabled = endIndex >= totalItems;
+      
+      // 清空表格
+      historyTableBody.innerHTML = '';
+      
+      // 如果没有数据
+      if (paginatedData.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="3" class="px-6 py-12 text-center text-neutral">
+            暂无打卡记录
+          </td>
+        `;
+        historyTableBody.appendChild(emptyRow);
+        return;
+      }
+      
+      // 添加数据行
+      paginatedData.forEach(([date, data]) => {
+        const row = document.createElement('tr');
+        row.classList.add('border-b', 'hover:bg-gray-50', 'transition-colors');
+        
+        // 格式化日期和时间
+        const dateObj = new Date(data.time);
+        const dateStr = dateObj.toLocaleDateString('zh-CN');
+        const timeStr = dateObj.toLocaleTimeString('zh-CN');
+        
+        row.innerHTML = `
+          <td class="px-6 py-4">${dateStr}</td>
+          <td class="px-6 py-4">${timeStr}</td>
+          <td class="px-6 py-4">
+            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">已打卡</span>
+          </td>
+        `;
+        
+        historyTableBody.appendChild(row);
+      });
+    }
+    
+    // 初始化图表
+    function initChart() {
+      const ctx = document.getElementById('checkin-chart').getContext('2d');
+      
+      // 获取最近30天的数据
+      const labels = [];
+      const data = [];
+      const today = new Date();
+      
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        
+        labels.push(dateStr);
+        data.push(checkinData[key] ? 1 : 0);
+      }
+      
+      checkinChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '打卡记录',
+            data: data,
+            backgroundColor: data.map(value => value ? 'rgba(16, 185, 129, 0.7)' : 'rgba(209, 213, 219, 0.7)'),
+            borderColor: data.map(value => value ? 'rgba(16, 185, 129, 1)' : 'rgba(209, 213, 219, 1)'),
+            borderWidth: 1,
+            borderRadius: 4,
+            barThickness: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 1,
+              ticks: {
+                stepSize: 1,
+                callback: function(value) {
+                  return value === 1 ? '已打卡' : '';
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    }
+    
+    // 更新图表
+    function updateChart() {
+      if (!checkinChart) return;
+      
+      // 更新最近30天的数据
+      const data = [];
+      const today = new Date();
+      
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        
+        data.push(checkinData[key] ? 1 : 0);
+      }
+      
+      checkinChart.data.datasets[0].data = data;
+      checkinChart.data.datasets[0].backgroundColor = data.map(value => value ? 'rgba(16, 185, 129, 0.7)' : 'rgba(209, 213, 219, 0.7)');
+      checkinChart.data.datasets[0].borderColor = data.map(value => value ? 'rgba(16, 185, 129, 1)' : 'rgba(209, 213, 219, 1)');
+      checkinChart.update();
+    }
+  </script>
+</body>
+</html>
